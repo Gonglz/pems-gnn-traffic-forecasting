@@ -1,0 +1,51 @@
+# Python/cache
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Local environments
+.venv/
+venv/
+env/
+*.egg-info/
+
+# Large/raw/intermediate data
+pems_data/
+*.csv
+*.parquet
+*.npy
+*.npz
+*.pt
+*.pkl
+*.h5
+*.hdf5
+
+# Model checkpoints and experiment outputs
+*.pth
+checkpoints/
+logs/
+metrics/
+plots/
+predictions/
+evidence/
+evidence_pack/
+finalproject_gpu_parallel_test/
+
+# Generated figures/logs at repo root
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.log
+cufile.log
+
+# System/editor files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
