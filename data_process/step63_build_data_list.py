@@ -3,10 +3,10 @@
 """
 step63_build_data_list_parallel_fixed.py
 
-并行化版（修复 KeyError）：利用 joblib 将每个时间步的子图构造分发到多核
-- 载入 X.npy, Y.npy, ts_list, full_st_list, edge_index
-- 载入 step62_neighbors.pkl
-- 在每个窗口内手动构建子图并重标号，不做跨窗口缓存
+noterowsnote(note KeyError): note joblib note
+- note X.npy, Y.npy, ts_list, full_st_list, edge_index
+- note step62_neighbors.pkl
+- note, note
 """
 
 import os, time
@@ -18,7 +18,7 @@ from torch_geometric.data import Data
 from tqdm.auto import tqdm
 from joblib import Parallel, delayed
 
-# ─── 配置 ───────────────────────────────────────────────────────────────
+# ─── configuration ───────────────────────────────────────────────────────────────
 DATA_DIR         = '/scratch/lgong1/finalproject/pems_data'
 X_PATH           = os.path.join(DATA_DIR, 'X.npy')
 Y_PATH           = os.path.join(DATA_DIR, 'Y.npy')
@@ -36,13 +36,13 @@ def build_for_ts(ts, ts2i, graph_nodes, neighbors, X, Y, edge_rows, edge_cols, s
         xs, eis, ys = {}, {}, {}
         for name, delta in DELTAS.items():
             nbrs = neighbors[name][node_idx]
-            # 构造 local_map 仅针对当前窗口
+            # note local_map notecurrentnote
             local_map = {old:i for i, old in enumerate(nbrs)}
-            # 特征与标签切片
+            # note
             col_idxs = [st2i[graph_nodes[i]] for i in nbrs]
-            x_sub = X[ti, col_idxs, :]
+            x_sub = X[ti, col_idxs,:]
             y_sub = Y[ti + delta, st2i[sid]]
-            # 手动过滤并重标号边
+            # note
             mask = np.isin(edge_rows, nbrs) & np.isin(edge_cols, nbrs)
             sub_rows = edge_rows[mask]; sub_cols = edge_cols[mask]
             new_rows = [local_map[r] for r in sub_rows]
@@ -99,6 +99,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-"""/scratch/lgong1/envs/traffic-env/bin/python /scratch/lgong1/finalproject/data_process/step63_build_data_list.py 
+"""/scratch/lgong1/envs/traffic-env/bin/python /scratch/lgong1/finalproject/data_process/step63_build_data_list.py
 Parallel building for 161973993 samples...
 parallel ts:   0%|          | 152/33171 [08:14<30:40:01,  3.34s/it]"""

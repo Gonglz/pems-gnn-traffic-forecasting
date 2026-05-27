@@ -15,8 +15,8 @@ The main results are documented in:
 
 - `EVIDENCE_RESULTS.md`
 - `PROJECT_REPORT.md`
-- `model/模型训练流程与加速方法.md`
-- `data_process/数据预处理流程与加速方法.md`
+- `model/training-and-acceleration.md`
+- `data_process/preprocessing-and-acceleration.md`
 
 Key evidence runs:
 

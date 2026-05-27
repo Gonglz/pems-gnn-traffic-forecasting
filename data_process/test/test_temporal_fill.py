@@ -10,7 +10,7 @@ from interp_utils import temporal_fill
 
 class TestTemporalFill(unittest.TestCase):
     def setUp(self):
-        # 构造简单时间序列：timestamp 用 0,1,2,3
+        # note: timestamp note 0,1,2,3
         self.base = pd.DataFrame({
             'station_id': [1,1,1,1],
             'direction':  ['N','N','N','N'],
@@ -22,23 +22,23 @@ class TestTemporalFill(unittest.TestCase):
     def test_linear_interpolation(self):
         df = self.base.copy()
         out = temporal_fill(df, 'flow', group_cols=['station_id','direction'], time_col='timestamp')
-        # mask_flag=True 的两点应被线性填充：位置1→20, 位置2→30
+        # mask_flag=True note: note1->20, note2->30
         np.testing.assert_allclose(out['flow'].values, [10,20,30,40])
 
     def test_single_valid(self):
-        # 只有一个有效点时，不做插值
+        # note, note
         df = self.base.copy()
         df.loc[[2,3], 'mask_flag'] = True
         df.loc[[2,3], 'flow'] = np.nan
         out = temporal_fill(df, 'flow')
-        # 只有 idx=0 有效，其它保留原 NaN
+        # note idx=0 note, note NaN
         self.assertEqual(out.loc[0,'flow'], 10.0)
         self.assertTrue(np.isnan(out.loc[1,'flow']))
         self.assertTrue(np.isnan(out.loc[2,'flow']))
         self.assertTrue(np.isnan(out.loc[3,'flow']))
 
     def test_no_mask(self):
-        # 没有 mask_flag → flow 不变
+        # note mask_flag -> flow note
         df = self.base.copy()
         df['mask_flag'] = False
         df.loc[1,'flow'] = 20

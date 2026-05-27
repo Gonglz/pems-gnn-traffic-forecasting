@@ -1,6 +1,6 @@
-# Project Report
+# Preprocessing And Acceleration
 
-Summarizes the PeMS traffic forecasting pipeline, including data cleaning, topology construction, weather alignment, GraphSAGE training, DDP correctness, and inference support.
+Summarizes the data-cleaning, imputation, topology-building, and preprocessing acceleration workflow for PeMS traffic data.
 
 ## Notes
 

@@ -3,14 +3,12 @@
 """
 step61_build_subgraphs_fast.py
 
-动态感受野，很慢，需要30小时
-
-终极修正版：高效离线多尺度物理自适应子图采样
-- 利用预先保存的 X.npy/Y.npy 快速索引
-- 重用 step52_buildTopo.py 的元数据和 edge_index
-- BFS 在“图节点索引”上进行，再映射回 station_id → X/Y 列索引
-- 手动构建局部 subgraph，无需 PyG subgraph()，兼容各种版本
-- 进度 & ETA 打印
+dynamicnote, note, note30note: note
+- notesavenote X.npy/Y.npy note
+- note step52_buildTopo.py notedatanote edge_index
+- BFS note"note"noterows, note station_id -> X/Y note
+- note subgraph, note PyG subgraph(), note
+- note & ETA note
 """
 
 import os, time
@@ -21,7 +19,7 @@ import networkx as nx
 from torch_geometric.data import Data
 from tqdm.auto import tqdm
 
-# ─── 配置 ───────────────────────────────────────────────────────────────
+# ─── configuration ───────────────────────────────────────────────────────────────
 DATA_DIR         = '/scratch/lgong1/finalproject/pems_data'
 X_PATH           = os.path.join(DATA_DIR, 'X.npy')
 Y_PATH           = os.path.join(DATA_DIR, 'Y.npy')
@@ -30,29 +28,29 @@ META_CSV         = os.path.join(DATA_DIR, 'step01_d07_meta.csv')
 EDGE_INDEX_PT    = os.path.join(DATA_DIR, 'step52_edge_index.pt')
 OUTPUT_DATA_LIST = os.path.join(DATA_DIR, 'data_list_multihead_subgraph_fast.pt')
 
-# 时间窗步数（1 步 = 5 分钟）
+# note(1 note = 5 note)
 DELTAS = {'5min': 1, '15min': 3, '30min': 6}
-# 物理距离阈值 = 波速(1 mi/h) × 时间窗(小时)
+# note = note(1 mi/h) x note(note)
 HOURS  = {name: delta * 5 / 60 for name, delta in DELTAS.items()}
 # ───────────────────────────────────────────────────────────────────────────
 
 def main():
-    # 1. 加载全量特征/标签矩阵
-    print("Loading X.npy, Y.npy ...", end="", flush=True)
+    # 1. note/note
+    print("Loading X.npy, Y.npy...", end="", flush=True)
     X = np.load(X_PATH)    # shape (T, N_all, F)
     Y = np.load(Y_PATH)    # shape (T, N_all)
     print(" done.")
 
-    # 2. 重建与 step60 对齐的 station_id 列表
-    print("Reconstructing station_id list ...", end="", flush=True)
+    # 2. note step60 note station_id note
+    print("Reconstructing station_id list...", end="", flush=True)
     df_ids = pd.read_parquet(INTERP_PARQ, columns=['station_id']).drop_duplicates()
     df_ids['station_id'] = df_ids['station_id'].astype(int)
     full_st_list = sorted(df_ids['station_id'].tolist())
     st2i = {s: i for i, s in enumerate(full_st_list)}
     print(f" done. total stations = {len(full_st_list)}")
 
-    # 3. 构建图 & 加载 meta（统一小写列名）
-    print("Loading edge_index and building graph ...", end="", flush=True)
+    # 3. note & note meta(unifiednote)
+    print("Loading edge_index and building graph...", end="", flush=True)
     edge_index = torch.load(EDGE_INDEX_PT)  # [2, E]
     rows, cols = edge_index.numpy()
 
@@ -60,16 +58,16 @@ def main():
     meta.columns = [c.lower() for c in meta.columns]
     if 'id' in meta.columns and 'station_id' not in meta.columns:
         meta = meta.rename(columns={'id':'station_id'})
-    # 丢弃无坐标行
+    # noterows
     meta = meta.dropna(subset=['latitude','longitude'])
-    # 仅保留在 full_st_list 中的站点
+    # note full_st_list note
     meta = meta[meta['station_id'].isin(full_st_list)].reset_index(drop=True)
 
     # graph_nodes[idx] = station_id
     graph_nodes = meta['station_id'].astype(int).tolist()
     length_map  = dict(zip(meta['station_id'], meta['length']))
 
-    # 构造有向图，节点用 0...len(graph_nodes)-1
+    # note, note 0...len(graph_nodes)-1
     G = nx.DiGraph()
     G.add_nodes_from(range(len(graph_nodes)))
     for u, v in zip(cols, rows):
@@ -77,15 +75,15 @@ def main():
                    length=length_map.get(graph_nodes[int(u)], 1.0))
     print(" done.")
 
-    # 4. 构造时间戳列表
+    # 4. note
     df_ts = pd.read_parquet(INTERP_PARQ, columns=['timestamp']).drop_duplicates()
     df_ts['timestamp'] = pd.to_datetime(df_ts['timestamp'])
     ts_list = sorted(df_ts['timestamp'].tolist())
     ts2i    = {t: i for i, t in enumerate(ts_list)}
 
-    # 5. 多尺度子图采样
+    # 5. note
     total = len(ts_list) * len(graph_nodes)
-    print(f"Sampling subgraphs for {total} (ts,node) pairs ...")
+    print(f"Sampling subgraphs for {total} (ts,node) pairs...")
     data_list = []
     count = 0
     t0 = time.time()
@@ -105,7 +103,7 @@ def main():
                       f"avg {elapsed/count*1000:.2f}ms/sample, "
                       f"ETA {eta/60:.1f}min")
 
-            # 5a) 物理自适应 BFS in graph node indices
+            # 5a) note BFS in graph node indices
             sub_idx = {}
             for name, maxd in HOURS.items():
                 visited = {node_idx}
@@ -119,16 +117,16 @@ def main():
                             queue.append((v, nd))
                 sub_idx[name] = list(visited)
 
-            # 5b) 构造每个子图的特征、边、标签
+            # 5b) note, note, note
             xs, eis, ys = {}, {}, {}
             for name, delta in DELTAS.items():
                 idxs = sub_idx[name]
                 # map graph_nodes[idx] -> station_id -> col_idx in X/Y
                 col_idxs = [st2i[ graph_nodes[i] ] for i in idxs]
-                x_sub = X[ti, col_idxs, :]
+                x_sub = X[ti, col_idxs,:]
                 y_sub = Y[ti + delta, st2i[sid]]
 
-                # 手动过滤并重标号边
+                # note
                 mask = np.isin(edge_rows, idxs) & np.isin(edge_cols, idxs)
                 sub_rows = edge_rows[mask]
                 sub_cols = edge_cols[mask]
@@ -152,7 +150,7 @@ def main():
             )
             data_list.append(data)
 
-    # 6. 保存
+    # 6. save
     torch.save(data_list, OUTPUT_DATA_LIST)
     total_time = time.time() - t0
     print(f"Saved {len(data_list)} samples to {OUTPUT_DATA_LIST}")

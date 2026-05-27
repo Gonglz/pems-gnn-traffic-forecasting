@@ -3,18 +3,18 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ——— 1. 加载数据 ———
+# --- 1. notedata ---
 base = '/scratch/lgong1/finalproject/pems_data'
-# 根据实际文件名改成 day_health_factor.csv 或 step20_day_health_factor_GPU.csv
+# notefilenote day_health_factor.csv note step20_day_health_factor_GPU.csv
 fname = 'step20_day_health_factor_GPU.csv'
 path = os.path.join(base, fname)
 df = pd.read_csv(path, parse_dates=['date'])
 
-# ——— 2. 摘要统计 ———
+# --- 2. note ---
 print("=== Summary Statistics ===")
 print(df['health_conf'].describe())
 
-# ——— 3. 直方图 ———
+# --- 3. note ---
 plt.figure(figsize=(6,4))
 plt.hist(df['health_conf'], bins=50, edgecolor='k')
 plt.xlabel('health_conf')
@@ -23,7 +23,7 @@ plt.title('Distribution of Day-level Health Factor')
 plt.tight_layout()
 plt.show()
 
-# ——— 4. 累积分布函数（CDF） ———
+# --- 4. notedistributionfunction(CDF) ---
 vals = np.sort(df['health_conf'].values)
 cdf = np.linspace(0, 1, len(vals))
 plt.figure(figsize=(6,4))
@@ -34,12 +34,12 @@ plt.title('CDF of Day-level Health Factor')
 plt.tight_layout()
 plt.show()
 
-# ——— 5. 分位数检查 ———
+# --- 5. note ---
 for p in [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99]:
     q = np.quantile(vals, p)
     print(f"{int(p*100):>2d}th percentile: {q:.4f}")
 
-"""/scratch/lgong1/envs/traffic-env/bin/python /scratch/lgong1/finalproject/data_process/step20_healthCheck.py 
+"""/scratch/lgong1/envs/traffic-env/bin/python /scratch/lgong1/finalproject/data_process/step20_healthCheck.py
 === Summary Statistics ===
 count    567008.000000
 mean          0.520622
@@ -60,5 +60,5 @@ Name: health_conf, dtype: float64
 95th percentile: 1.0000
 99th percentile: 1.0000
 
-进程已结束，退出代码为 0
+process finished, exit codenote 0
 """

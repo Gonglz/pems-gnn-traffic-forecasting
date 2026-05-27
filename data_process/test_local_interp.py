@@ -27,7 +27,7 @@ import unittest
 import numpy as np
 from numba import cuda, float32
 
-# 要测试的 CUDA kernel
+# note CUDA kernel
 @cuda.jit
 def local_kernel(feat, nbr, mask, out, K):
     i = cuda.grid(1)
@@ -49,7 +49,7 @@ def local_kernel(feat, nbr, mask, out, K):
 
 class TestLocalInterp(unittest.TestCase):
     def test_simple_interp(self):
-        # 准备测试数据
+        # notedata
         flow = np.array([10., 20., 30., 40.], dtype=np.float32)
         mask = np.array([False, True, False, False], dtype=np.bool_)
         nbr = np.array([
@@ -60,26 +60,26 @@ class TestLocalInterp(unittest.TestCase):
         ], dtype=np.int32)
         K = 2
 
-        # 拷贝到 GPU
+        # note GPU
         d_flow = cuda.to_device(flow)
         d_mask = cuda.to_device(mask)
         d_nbr  = cuda.to_device(nbr)
         d_out  = cuda.device_array_like(d_flow)
 
-        # 调用 kernel
+        # note kernel
         threads = 128
         blocks  = (flow.size + threads - 1) // threads
         local_kernel[blocks, threads](d_flow, d_nbr, d_mask, d_out, K)
         cuda.synchronize()
 
-        # 拷回结果
+        # noteresult
         result = d_out.copy_to_host()
 
-        # 期望值：只有第二个位置需要插值 (10+30)/2=20
+        # note: note (10+30)/2=20
         expected = np.array([10., 20., 30., 40.], dtype=np.float32)
         self.assertTrue(
             np.allclose(result, expected),
-            msg=f"插值结果不正确: got {result}, expected {expected}"
+            msg=f"noteresultnote: got {result}, expected {expected}"
         )
 
 if __name__ == '__main__':

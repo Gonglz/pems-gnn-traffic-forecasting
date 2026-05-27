@@ -103,7 +103,7 @@ def process_partition(pdf, nbr_map, K):
     pdf_good = pdf_good.sort_values(['station_id','direction','timestamp']).reset_index(drop=True)
     offs = [0]
     for i in range(1, len(pdf_good)):
-        if (pdf_good.loc[i,'station_id'], pdf_good.loc[i,'direction']) != \
+        if (pdf_good.loc[i,'station_id'], pdf_good.loc[i,'direction'])!= \
            (pdf_good.loc[i-1,'station_id'], pdf_good.loc[i-1,'direction']):
             offs.append(i)
     offs.append(len(pdf_good))
@@ -172,11 +172,11 @@ if __name__ == '__main__':
 """
 step40_fill_fastest_optimized.py
 
-针对 step40_interpolated_fastest.py 做的性能调优：
-  - 读 CSV 时用更大 blocksize，并增加分区数
-  - Local/temporal CUDA kernels 使用 512 threads
-  - Global 插值改为 cuDF-groupby 完全在 GPU 上执行
-  - 最终 to_parquet 交给 Dask 一次性写出
+note step40_interpolated_fastest.py note:
+  - note CSV note blocksize, note
+  - Local/temporal CUDA kernels note 512 threads
+  - Global note cuDF-groupby note GPU noterows
+  - note to_parquet note Dask note
 """
 import os, time
 import numpy as np
@@ -193,9 +193,9 @@ MASK_PARQ    = os.path.join(BASE_DIR, 'step34_maskMix.parquet')
 META_CSV     = os.path.join(BASE_DIR, 'step01_d07_meta.csv')
 OUTPUT_PARQ  = os.path.join(BASE_DIR, 'step40_fastest.parquet')
 
-# 并行度、CUDA 配置
+# noterowsnote, CUDA configuration
 N_GPUS       = 5
-THREADS      = 512              # 每个 block 的线程数
+THREADS      = 512              # note block notethread count
 FEATURES     = ['flow','occupancy','speed']
 K            = 8
 
@@ -231,13 +231,13 @@ def temporal_kernel(ts, mask, offs, out):
                 t0 = ts[idx]; v0 = out[idx]
 
 def process_partition(pdf, nbr_map):
-    # 1) merge nbr_idx, 构建 mask_flag
+    # 1) merge nbr_idx, note mask_flag
     pdf = pdf.merge(nbr_map, on='station_id', how='left')
     for m in ['mask_logic','mask_md','mask_hf']:
         pdf[m] = pdf[m].fillna(False)
     pdf['mask_flag'] = pdf['mask_logic'] | pdf['mask_md'] | pdf['mask_hf']
 
-    # 2) local 插值
+    # 2) local note
     nbr_list = pdf['nbr_idx'].to_arrow().to_pylist()
     valid = [i for i, x in enumerate(nbr_list) if x is not None]
     bad   = [i for i, x in enumerate(nbr_list) if x is None]
@@ -256,9 +256,9 @@ def process_partition(pdf, nbr_map):
         cuda.synchronize()
         good[feat] = d_out.copy_to_host()
 
-    # 3) global 插值：全部用 cuDF 的 groupby
+    # 3) global note: note cuDF note groupby
     gdf = good.drop(columns=['nbr_idx'])
-    # 未被 mask 的行，按 (station_id,direction) 求平均
+    # note mask noterows, note (station_id,direction) note
     mean_df = gdf[~gdf['mask_flag']].groupby(['station_id','direction'])[FEATURES].mean().reset_index()
     gdf = gdf.merge(mean_df, on=['station_id','direction'], how='left', suffixes=('','_g'))
     for feat in FEATURES:
@@ -268,12 +268,12 @@ def process_partition(pdf, nbr_map):
         )
         gdf = gdf.drop(columns=[f'{feat}_g'])
 
-    # 4) temporal 插值
+    # 4) temporal note
     gdf = gdf.sort_values(['station_id','direction','timestamp']).reset_index(drop=True)
-    # 构造 offsets
+    # note offsets
     offs=[0]
     for i in range(1,len(gdf)):
-        if (gdf.loc[i,'station_id'],gdf.loc[i,'direction']) != \
+        if (gdf.loc[i,'station_id'],gdf.loc[i,'direction'])!= \
            (gdf.loc[i-1,'station_id'],gdf.loc[i-1,'direction']):
             offs.append(i)
     offs.append(len(gdf))
@@ -289,14 +289,14 @@ def process_partition(pdf, nbr_map):
         cuda.synchronize()
         gdf[feat] = darr.copy_to_host()
 
-    # 合并回 bad rows
+    # note bad rows
     out = cudf.concat([gdf, baddf]).sort_index()
     return out.drop(columns=['mask_flag','nbr_idx'])
 
 if __name__=='__main__':
     t0 = time.time()
 
-    # 启动 Dask-CUDA
+    # note Dask-CUDA
     cluster = LocalCUDACluster(
         n_workers=N_GPUS,
         CUDA_VISIBLE_DEVICES=','.join(map(str,range(N_GPUS))),
@@ -305,7 +305,7 @@ if __name__=='__main__':
     )
     client = Client(cluster)
 
-    # 构建邻居索引表
+    # note
     st = cudf.read_csv(META_CSV, usecols=['station_id','latitude','longitude']).dropna().reset_index(drop=True)
     coords = st[['latitude','longitude']].to_pandas().to_numpy(np.float32)
     nn = NearestNeighbors(n_neighbors=K)
@@ -316,7 +316,7 @@ if __name__=='__main__':
         'nbr_idx':    cp.asnumpy(nbrs).tolist()
     })
 
-    # 读取原始 + mask 数据
+    # readnote + mask data
     usecols = ['timestamp','station_id','direction'] + FEATURES + ['mask_logic','mask_md','mask_hf']
     raw = dask_cudf.read_csv(
         RAW_CSV, usecols=usecols, parse_dates=['timestamp'],
@@ -324,17 +324,17 @@ if __name__=='__main__':
     )
     mask = dask_cudf.read_parquet(MASK_PARQ, columns=['timestamp','station_id','mask_logic','mask_md','mask_hf'])
     ddf  = raw.merge(mask, on=['timestamp','station_id'], how='left')
-    # 增加并行度：每个 GPU 上面至少 10 个分区
+    # noterowsnote: note GPU note 10 note
     ddf = ddf.repartition(npartitions=N_GPUS * 10)
 
-    # map_partitions， 不做对齐
+    # map_partitions,  note
     out_ddf = ddf.map_partitions(
         process_partition, nbr_map,
         meta=ddf._meta,
         align_dataframes=False
     )
 
-    # 一次性写 Parquet，交给 Dask 处理并行
+    # note Parquet, note Dask noterows
     out_ddf.to_parquet(OUTPUT_PARQ, write_index=False)
 
     client.close()

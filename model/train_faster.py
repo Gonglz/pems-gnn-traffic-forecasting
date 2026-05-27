@@ -3,19 +3,19 @@
 """
 model/train_optimized.py
 
-高度优化版训练脚本 — 在 train_faster 基础上进一步强化：
-- 邻居列表预加载到 GPU 张量（假设 dataset_full 已支持）
-- Torch 2.0 fullgraph 编译（单卡/DEBUG）
-- DDP 多卡 with find_unused_parameters
-- AMP 混合精度 + 梯度累积
+notetrainingnote - note train_faster note:
+- note GPU note(note dataset_full note)
+- Torch 2.0 fullgraph build(note/DEBUG)
+- DDP note with find_unused_parameters
+- AMP note + note
 - CuDNN TF32 + Benchmark
-- DataLoader 持久化 workers + 非阻塞拷贝
-- 周期 & 部分验证
-- tqdm 实时进度条
+- DataLoader note workers + note
+- note & note
+- tqdm note
 === Epoch 1/20 ===
 [Epoch 1 train]:  76%|████████████████████▍      | 4024/5308 [10:02<03:12,  6.67it/s, loss=109846.3][Epoch 1 train]:  74%|███████████████████████████████           | 3925/5308 [09:
 [Epoch 1] avg MSE loss = 119168.690396
-[DEBUG] 跑 663 步验证后，提前结束
+[DEBUG] note 663 note, notefirstnote
 [VAL ] RMSE5=160.69, MAE5=107.43
 """
 
@@ -29,11 +29,11 @@ from torch.utils.data import DistributedSampler
 from torch_geometric.loader import DataLoader
 from tqdm import tqdm
 
-# 绝对导入项目里的模块
-from .dataset_full import RFGraphDatasetFull
-from .gnn_final     import MultiHeadRFGraphSAGEDyn
+# note
+from.dataset_full import RFGraphDatasetFull
+from.gnn_final     import MultiHeadRFGraphSAGEDyn
 
-# ─── 超参数 ───────────────────────────────────────────────────────────
+# ─── note ───────────────────────────────────────────────────────────
 EPOCHS        = 20
 LR            = 1e-3
 HIDDEN_DIM    = 64
@@ -43,20 +43,20 @@ BATCH_SIZE    = 1
 ACCUM_STEPS   = 4
 NUM_WORKERS   = 4
 USE_AMP       = True
-DEBUG_STEPS   = 10    # debug 模式下短跑步数
-VAL_PERIOD    = 2     # 每隔几轮做一次全量验证
-VAL_FRACTION  = 0.1   # 非全量验证时，前 VAL_FRACTION 比例批次
+DEBUG_STEPS   = 10    # debug note
+VAL_PERIOD    = 2     # note
+VAL_FRACTION  = 0.1   # note, first VAL_FRACTION note
 # ─────────────────────────────────────────────────────────────────────────
 
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument('--debug', action='store_true',
-                   help='DEBUG 模式：短跑 DEBUG_STEPS 步')
+                   help='DEBUG note: note DEBUG_STEPS note')
     return p.parse_args()
 
 args = parse_args()
 
-# ─── DDP / DEVICE 设置 ─────────────────────────────────────────────────
+# ─── DDP / DEVICE note ─────────────────────────────────────────────────
 use_ddp = not args.debug and 'WORLD_SIZE' in os.environ and int(os.environ['WORLD_SIZE']) > 1
 if use_ddp:
     import torch.distributed as dist
@@ -75,8 +75,8 @@ else:
 # ────────────────────────────────────────────────────────────────────────
 
 def train():
-    # 1. 数据集
-    ds = RFGraphDatasetFull()       # 内部已将 neighbors GPU 张量化
+    # 1. dataset
+    ds = RFGraphDatasetFull()       # note neighbors GPU note
     train_ds = ds.train_list
     val_ds   = ds.val_list
     if rank == 0:
@@ -104,7 +104,7 @@ def train():
         prefetch_factor=2,
     )
 
-    # 3. 模型 & 优化器 & AMP
+    # 3. model & note & AMP
     model = MultiHeadRFGraphSAGEDyn(
         in_dim=ds.F,
         hidden_dim=HIDDEN_DIM,
@@ -112,11 +112,11 @@ def train():
         dropout=DROPOUT
     ).to(DEVICE)
 
-    # 3.1 Torch 2.0 编译（仅单卡/DEBUG）
+    # 3.1 Torch 2.0 build(note/DEBUG)
     if not use_ddp:
         model = torch.compile(model, fullgraph=True)
 
-    # 3.2 DDP 包装
+    # 3.2 DDP note
     if use_ddp:
         model = nn.parallel.DistributedDataParallel(
             model,
@@ -132,7 +132,7 @@ def train():
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cuda.matmul.allow_tf32 = True
 
-    # 4. 训练/验证循环
+    # 4. training/note
     for epoch in range(1, EPOCHS+1):
         model.train()
         if use_ddp:
@@ -143,7 +143,7 @@ def train():
         if rank == 0:
             print(f"\n=== Epoch {epoch}/{EPOCHS} ===")
 
-        # —— 训练 ——
+        # -- training --
         train_bar = tqdm(
             enumerate(train_loader),
             total=len(train_loader),
@@ -172,16 +172,16 @@ def train():
 
             if args.debug and step+1 >= DEBUG_STEPS:
                 if rank == 0:
-                    train_bar.write(f"[DEBUG] 跑 {DEBUG_STEPS} 步训练后，提前结束")
+                    train_bar.write(f"[DEBUG] note {DEBUG_STEPS} notetrainingnote, notefirstnote")
                 break
 
-        # 训练平均 Loss
+        # trainingnote Loss
         used_steps = min(DEBUG_STEPS, len(train_loader)) if (args.debug and DEBUG_STEPS>0) else len(train_loader)
         avg_loss = total_loss / used_steps
         if rank == 0:
             print(f"[Epoch {epoch}] avg MSE loss = {avg_loss:.6f}")
 
-        # —— 验证 ——
+        # -- note --
         model.eval()
         total_mse5 = total_mae5 = 0.0
 
@@ -200,7 +200,7 @@ def train():
             for vstep, vdata in val_bar:
                 if vstep+1 >= max_vsteps:
                     if rank == 0:
-                        val_bar.write(f"[DEBUG] 跑 {max_vsteps} 步验证后，提前结束")
+                        val_bar.write(f"[DEBUG] note {max_vsteps} note, notefirstnote")
                     break
 
                 vdata = vdata.to(DEVICE, non_blocking=True)
@@ -218,7 +218,7 @@ def train():
         if rank == 0:
             print(f"[VAL ] RMSE5={rmse5:.2f}, MAE5={mae5:.2f}")
 
-    # 5. 保存模型
+    # 5. savemodel
     if rank == 0:
         torch.save(model.state_dict(), 'rf_gnn_dynamic_optimized.pth')
         print("Saved checkpoint: rf_gnn_dynamic_optimized.pth")

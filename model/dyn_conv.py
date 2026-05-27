@@ -14,9 +14,9 @@ class GraphSAGEDynConv(nn.Module):
         N, K = nbr_idx.size()
         mask = nbr_idx < 0                       # [N, K]
         idx  = nbr_idx.clone()
-        idx[mask] = 0                            # 防止越界
+        idx[mask] = 0                            # note
         h_nei = x[idx]                           # [N, K, F_in]
-        h_nei[mask] = 0                          # padding 置零
+        h_nei[mask] = 0                          # padding note
         cnt = (~mask).sum(dim=1, keepdim=True).clamp(min=1).float()  # [N,1]
         neigh_mean = h_nei.sum(dim=1) / cnt      # [N, F_in]
 

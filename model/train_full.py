@@ -17,8 +17,8 @@ from torch.utils.data import DistributedSampler
 from torch_geometric.loader import DataLoader
 
 # absolute imports from the model package
-from .dataset_full import RFGraphDatasetFull
-from .gnn_full     import MultiHeadRFGraphSAGEDyn
+from.dataset_full import RFGraphDatasetFull
+from.gnn_full     import MultiHeadRFGraphSAGEDyn
 
 # ─── Hyperparameters ────────────────────────────────────────────
 EPOCHS       = 20
@@ -155,7 +155,7 @@ def train():
         if rank == 0:
                         print(f"[Epoch {epoch}] avg MSE loss = {avg_loss:.6f}")
 
-        # — validation —
+        # - validation -
         model.eval()
         """total_mse5 = total_mae5 = 0.0
         with torch.no_grad():
@@ -177,7 +177,7 @@ def train():
                 total_mse5 += F.mse_loss(p5, vdata.y5.to(DEVICE), reduction='sum').item()
                 total_mae5 += F.l1_loss(p5, vdata.y5.to(DEVICE), reduction='sum').item()
 
-        # 正确的分母： 时间片数 × 节点数
+        # note:  note x note
         num_val_windows = len(val_ds)
         num_nodes = ds.N  # 4883
         total_samples = num_val_windows * num_nodes

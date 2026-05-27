@@ -13,39 +13,39 @@ PARQ_Y      = os.path.join(DATA_DIR, 'Y.npy')
 class RFGraphDataset(InMemoryDataset):
     def __init__(self):
         super().__init__(DATA_DIR)
-        # 1) 加载特征和标签
+        # 1) note
         X = np.load(PARQ_X)  # (T, N, F)
         Y = np.load(PARQ_Y)  # (T, N)
         sids = np.load(os.path.join(DATA_DIR, 'sids.npy'))  # (4888,)
         payload = pickle.load(open(NEIGHBOR_PKL, 'rb'))
         graph_nodes = np.array(payload['graph_nodes'], dtype=int)  # (4883,)
 
-        # —— 新增：构造 mask，只保留在 graph_nodes 里的站点
-        mask = np.isin(sids, graph_nodes)  # Boolean (4888,) 有 neighbor 的为 True
+        # -- note: note mask, note graph_nodes note
+        mask = np.isin(sids, graph_nodes)  # Boolean (4888,) note neighbor note True
 
-        # —— 新增：过滤 X,Y 维度
-        X = X[:, mask, :]  # -> (T, 4883, F)
+        # -- note: note X,Y note
+        X = X[:, mask,:]  # -> (T, 4883, F)
         Y = Y[:, mask]  # -> (T, 4883)
 
-        # 2) 赋值回去
+        # 2) note
         self.T, self.N, self.F = X.shape
         self.X = torch.from_numpy(X).float()
         self.Y = torch.from_numpy(Y).float()
 
-        # 2) 读 in-memory precomputed neighbors
+        # 2) note in-memory precomputed neighbors
         payload = pickle.load(open(NEIGHBOR_PKL, 'rb'))
-        # payload['graph_nodes'] 就是 station_id 列表，对应矩阵行
+        # payload['graph_nodes'] note station_id note, noterows
         nbrs = payload['neighbors']
-        # 把每个列表做成固定宽度的 LongTensor，-1 作 padding
+        # note LongTensor, -1 note padding
         self.nbr5  = self._to_padded_tensor(nbrs['5min'])
         self.nbr15 = self._to_padded_tensor(nbrs['15min'])
         self.nbr30 = self._to_padded_tensor(nbrs['30min'])
 
-        # 3) 三个尺度的步长（单位：5min）
+        # 3) note(note: 5min)
         self.delta5, self.delta15, self.delta30 = 1, 3, 6
         self.max_delta = max(self.delta5, self.delta15, self.delta30)
 
-        # 4) 把所有时间步 t 构造成一个 Data list
+        # 4) note t note Data list
         self.data_list = []
         for t in range(self.T - self.max_delta):
             data = Data(
@@ -60,12 +60,12 @@ class RFGraphDataset(InMemoryDataset):
             self.data_list.append(data)
 
     def _to_padded_tensor(self, lists):
-        """把 List[List[int]] -> LongTensor(N, K) 用 -1 padding"""
+        """note List[List[int]] -> LongTensor(N, K) note -1 padding"""
         N = len(lists)
         K = max(len(sub) for sub in lists)
         mat = torch.full((N, K), -1, dtype=torch.long)
         for i, row in enumerate(lists):
-            mat[i, :len(row)] = torch.tensor(row, dtype=torch.long)
+            mat[i,:len(row)] = torch.tensor(row, dtype=torch.long)
         return mat
 
     def len(self):

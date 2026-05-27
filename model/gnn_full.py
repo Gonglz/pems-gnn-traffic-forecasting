@@ -1,13 +1,13 @@
 # model/gnn_full.py
 import torch.nn as nn
-from .dyn_conv import GraphSAGEDynConv
+from.dyn_conv import GraphSAGEDynConv
 import torch.nn.functional as F
 
 
 class MultiHeadRFGraphSAGEDyn(nn.Module):
     def __init__(self, in_dim, hidden_dim, num_layers, dropout):
         super().__init__()
-        # 三套 Dynamic SAGEConv
+        # note Dynamic SAGEConv
         self.convs5  = nn.ModuleList([
             GraphSAGEDynConv(in_dim if i==0 else hidden_dim, hidden_dim)
             for i in range(num_layers)
@@ -21,7 +21,7 @@ class MultiHeadRFGraphSAGEDyn(nn.Module):
             for i in range(num_layers)
         ])
         self.dropout = dropout
-        # 三个头
+        # note
         self.head5  = nn.Linear(hidden_dim, 1)
         self.head15 = nn.Linear(hidden_dim, 1)
         self.head30 = nn.Linear(hidden_dim, 1)

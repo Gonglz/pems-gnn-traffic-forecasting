@@ -3,7 +3,7 @@
 """
 model/debug_forward.py
 
-本脚本自动把项目根目录加入 sys.path，支持绝对导入：
+notedirectorynote sys.path, note:
   from model.dataset_full import RFGraphDatasetFull
   from model.gnn_full     import MultiHeadRFGraphSAGEDyn
 """
@@ -11,24 +11,24 @@ model/debug_forward.py
 import os
 import sys
 
-# ─── 把项目根目录（即包含 model/ 的上一级）加到 sys.path ────────────────
+# ─── notedirectory(note model/ note)note sys.path ────────────────
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# 现在可以用绝对导入了
+# note
 from dataset_full import RFGraphDatasetFull
 from gnn_full     import MultiHeadRFGraphSAGEDyn
 
 import torch
 #!/usr/bin/env python3
 import os, sys
-# 把项目根目录插入 sys.path
+# notedirectorynote sys.path
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-# 绝对导入
+# note
 from dataset_full import RFGraphDatasetFull
 from gnn_full     import MultiHeadRFGraphSAGEDyn
 
@@ -67,7 +67,7 @@ def main():
     print("  y30.shape =", y30.shape)
     print("y5 sample:", y5[:5].cpu().numpy().flatten())
 
-    print("✅ Forward pass successful!")
+    print("PASS Forward pass successful!")
 
 if __name__ == '__main__':
     main()

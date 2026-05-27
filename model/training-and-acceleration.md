@@ -1,6 +1,6 @@
-# Project Report
+# Training And Acceleration
 
-Summarizes the PeMS traffic forecasting pipeline, including data cleaning, topology construction, weather alignment, GraphSAGE training, DDP correctness, and inference support.
+Summarizes the model-training workflow, GraphSAGE/NeighborSampler path, DDP sharding, and acceleration decisions.
 
 ## Notes
 

@@ -4,7 +4,7 @@ Total records: 162710195
 Unique stations: 4883
 Unique grid cells: 67
 
-Stations without weather mapping (5): [718156, 760349, 760350, 760361, 770172] ...
+Stations without weather mapping (5): [718156, 760349, 760350, 760361, 770172]...
 
 Missing tavg: 11 / 162710195 (0.00%)
 Missing pcpn: 11 / 162710195 (0.00%)
@@ -13,7 +13,7 @@ Missing pressure: 11 / 162710195 (0.00%)
 Missing wind_speed: 11 / 162710195 (0.00%)
 
 
-进程已结束，退出代码为 0
+process finished, exit codenote 0
 """
 
 import pandas as pd

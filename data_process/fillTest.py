@@ -38,7 +38,7 @@ temporal fills, orchestrated via Dask‑cuDF over multiple GPUs.
 2025-05-05 16:13:15,260 - distributed.utils\_perf - WARNING - full garbage collections took 21% CPU time recently (threshold: 10%)
 Total time: 658.4399013519287 s
 
-进程已结束，退出代码为 0
+process finished, exit codenote 0
 
 """
 import os, sys, time
@@ -111,8 +111,7 @@ def temporal_kernel(ts, mask_flag, offs, out):
 # ─── Neighbor map creation ───────────────────────────────────────────────────
 
 def build_nbr_map():
-    df = cudf.read_csv(STATIONS_CSV,usecols=['station_id','latitude','longitude'])\
-             .dropna().reset_index(drop=True)
+    df = cudf.read_csv(STATIONS_CSV,usecols=['station_id','latitude','longitude']).dropna().reset_index(drop=True)
     coords = df[['latitude','longitude']].to_pandas().values.astype('float32')
     nn = NearestNeighbors(n_neighbors=K_NEIGHBORS).fit(cp.asarray(coords))
     nbrs = nn.kneighbors(cp.asarray(coords), return_distance=False)
@@ -126,14 +125,14 @@ def build_nbr_map():
 def process_partition(pdf, nbr_map):
     if pdf.shape[0]==0:
         return pdf
-    # 1) 合并邻居映射
+    # 1) note
     pdf = pdf.merge(nbr_map,on='station_id',how='left')
-    # 2) Mask 列 OR
+    # 2) Mask note OR
     pdf['mask_flag'] = (pdf['mask_logic']|pdf['mask_md']|pdf['mask_hf']).fillna(False)
-    # 3) 类别编码 direction -> dir_code
+    # 3) classnote direction -> dir_code
     pdf['dir_code'] = pdf['direction'].astype('category').cat.codes.astype('int32')
 
-    # 拆分有无 nbr
+    # note nbr
     nbrs_list = pdf['nbr_idx'].to_arrow().to_pylist()
     no_nbr    = np.array([x is None for x in nbrs_list],dtype=bool)
     idx_good  = np.where(~no_nbr)[0]; idx_bad = np.where(no_nbr)[0]
@@ -144,7 +143,7 @@ def process_partition(pdf, nbr_map):
     N  = pg.shape[0]
     blocks = (N+THREADS-1)//THREADS
 
-    # 数据上 GPU
+    # datanote GPU
     sid    = pg['station_id'].to_numpy().astype('int32')
     did    = pg['dir_code'].to_numpy().astype('int32')
     mflag  = pg['mask_flag'].to_numpy().astype(bool)
@@ -154,7 +153,7 @@ def process_partition(pdf, nbr_map):
     nbrs_a = np.vstack(pg['nbr_idx'].to_arrow().to_pylist()).astype('int32')
     d_nbr  = cuda.to_device(nbrs_a)
 
-    # 1) 本地空间插值
+    # 1) note
     for feat in FEATURES:
         arr = pg[feat].fillna(0).to_numpy('float32')
         d_in  = cuda.to_device(arr)
@@ -163,9 +162,8 @@ def process_partition(pdf, nbr_map):
         cuda.synchronize()
         pg[feat]=d_out.copy_to_host()
 
-    # 2) 全局平均插值
-    grp = pg[~pg['mask_flag']].groupby(['station_id','dir_code'])[FEATURES]\
-            .mean().reset_index()
+    # 2) note
+    grp = pg[~pg['mask_flag']].groupby(['station_id','dir_code'])[FEATURES].mean().reset_index()
     if grp.shape[0]>0:
         G = grp.shape[0]
         gi = grp[['station_id','dir_code']].to_numpy('int32')
@@ -180,9 +178,8 @@ def process_partition(pdf, nbr_map):
             cuda.synchronize()
             pg[feat]=d_f.copy_to_host()
 
-    # 3) 时间线性插值
-    pg = pg.sort_values(['station_id','dir_code','timestamp'])\
-           .reset_index(drop=True)
+    # 3) note
+    pg = pg.sort_values(['station_id','dir_code','timestamp']).reset_index(drop=True)
     ts = pg['timestamp'].astype('int64').to_numpy('float32')
     st = pg['station_id'].to_numpy()
     dc = pg['dir_code'].to_numpy()
@@ -197,7 +194,7 @@ def process_partition(pdf, nbr_map):
         cuda.synchronize()
         pg[feat]=d_f.copy_to_host()
 
-    # 合并返还
+    # note
     pb = pdf.iloc[idx_bad].reset_index(drop=True)
     out = cudf.concat([pg,pb]).sort_index()
     return out.drop(columns=['nbr_idx','mask_flag','dir_code'])

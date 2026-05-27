@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-step40_fill_gpu.py — 三步插值流水线（GPU 加速 + 分块 + Merge MD 掩码）
+step40_fill_gpu.py - note(GPU note + note + Merge MD note)
 
-用法：
+note:
   cd finalproject/data_process
   python step40_fill_gpu.py [--test-n N]
 
-依赖：
+note:
   pandas numpy scikit-learn tqdm numba cupy cudf
 Temporal speed (GPU):  92%|█████████▏| 4479/4888 [00:02<00:00, 2131.54it/s]
 Temporal speed (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2117.53it/s]
-✅ 插值完成，结果已保存到 /scratch/lgong1/finalproject/pems_data/step40_interpolated.csv
+PASS note, resultnotesavenote /scratch/lgong1/finalproject/pems_data/step40_interpolated.csv
 Processing chunks: 325it [12:43:08, 140.89s/it]
 
-进程已结束，退出代码为 0
-进程已结束，退出代码为 0
+process finished, exit codenote 0
+process finished, exit codenote 0
 """
 
 import os
@@ -28,7 +28,7 @@ from numba import cuda
 from sklearn.neighbors import KDTree
 from tqdm import tqdm
 
-# ——— 路径 & 参数 ———
+# --- path & note ---
 BASE       = os.path.abspath(os.path.join(os.path.dirname(__file__),'..','pems_data'))
 RAW_LONG   = os.path.join(BASE, 'step31_fillExter.csv')
 LOGIC_CSV  = os.path.join(BASE, 'step30_logic_mask_continuous.csv')
@@ -40,23 +40,23 @@ HF_THRESH  = 0.5
 LOCAL_K    = 5
 CHUNK_SIZE = 500_000
 
-# ——— 预加载小表 ———
-# 逻辑掩码
+# --- note ---
+# note
 logic_full = pd.read_csv(LOGIC_CSV, parse_dates=['timestamp'])
 logic_full = logic_full[['timestamp','station_id','mask_logic']]
 
-# Mahalanobis 掩码（已含 station_id, timestamp）
+# Mahalanobis note(note station_id, timestamp)
 md_full = pd.read_csv(MD_CSV, parse_dates=['timestamp'])
 md_full = md_full[['timestamp','station_id','mask_md']]
 
-# 日健康因子
+# note
 hf_pdf = pd.read_csv(HF_CSV, parse_dates=['date'])
 if 'health_factor' not in hf_pdf.columns:
     hf_pdf = hf_pdf.rename(columns={hf_pdf.columns[-1]:'health_factor'})
 hf_pdf['date'] = hf_pdf['date'].dt.date
 hf_pdf = hf_pdf[['station_id','date','health_factor']]
 
-# ——— CUDA Kernel for Local 插值 ———
+# --- CUDA Kernel for Local note ---
 @cuda.jit
 def local_kernel(feat_in, nbr_idx, mask, feat_out, K):
     i = cuda.grid(1)
@@ -74,28 +74,28 @@ def local_kernel(feat_in, nbr_idx, mask, feat_out, K):
             feat_out[i] = feat_in[i]
 
 def process_chunk(pdf: pd.DataFrame, is_first: bool):
-    # 合并逻辑掩码
+    # note
     pdf = pdf.merge(logic_full, on=['timestamp','station_id'], how='left')
     pdf['mask_logic'] = pdf['mask_logic'].fillna(False)
 
-    # 合并 Mahalanobis 掩码
+    # note Mahalanobis note
     pdf = pdf.merge(md_full, on=['timestamp','station_id'], how='left')
     pdf['mask_md'] = pdf['mask_md'].fillna(False)
 
-    # 合并健康因子掩码
+    # note
     pdf['date'] = pdf['timestamp'].dt.date
     pdf = pdf.merge(hf_pdf, on=['station_id','date'], how='left')
     pdf['health_factor'] = pdf['health_factor'].fillna(1.0)
     pdf['mask_hf'] = pdf['health_factor'] < HF_THRESH
     pdf.drop(columns=['date'], inplace=True)
 
-    # 总掩码
+    # note
     pdf['mask'] = pdf['mask_logic'] | pdf['mask_md'] | pdf['mask_hf']
     mask_np = pdf['mask'].to_numpy(dtype=bool)
     for feat in ['flow','occupancy','speed']:
         pdf.loc[mask_np, feat] = np.nan
 
-    # —— GPU Local 插值 ——
+    # -- GPU Local note --
     coords = pdf[['latitude','longitude']].values
     valid  = np.isfinite(coords).all(axis=1)
     bad_idx  = np.where(mask_np & valid)[0]
@@ -105,7 +105,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
         tree = KDTree(coords[good_idx])
         k_local = min(LOCAL_K, len(good_idx))
         nbrs = tree.query(coords[bad_idx], k=k_local, return_distance=False)
-        nbr_idx[bad_idx, :k_local] = good_idx[nbrs]
+        nbr_idx[bad_idx,:k_local] = good_idx[nbrs]
 
     N = len(pdf)
     local_out = {}
@@ -120,7 +120,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
         local_kernel[blocks, threads](feat_in, nbr_idx_gpu, mask_gpu, feat_out, LOCAL_K)
         local_out[feat] = cp.asnumpy(feat_out)
 
-    # —— GPU Global 插值 via cuDF ——
+    # -- GPU Global note via cuDF --
     cdf    = cudf.from_pandas(pdf[['station_id','direction','mask','flow','occupancy','speed']])
     normal = cdf[~cdf['mask']]
     means  = normal.groupby(['station_id','direction']).mean().reset_index().to_pandas()
@@ -131,7 +131,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
         orig = pdf[feat].values
         global_out[feat] = np.where(mask_np, gm, orig)
 
-    # —— GPU Temporal 插值 via CuPy interp ——
+    # -- GPU Temporal note via CuPy interp --
     tpdf   = pdf
     ts_all = cp.asarray(tpdf['timestamp'].astype(np.int64).values)
     mask_all = cp.asarray(mask_np, dtype=cp.bool_)
@@ -150,7 +150,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
             out_vals[idx_arr] = cp.where(mk, interp_vals, vs)
         temporal_out[feat] = cp.asnumpy(out_vals)
 
-    # 合并结果
+    # noteresult
     for feat in ['flow','occupancy','speed']:
         filled = pdf[feat].to_numpy(dtype=np.float32, copy=True)
         for candidate in (local_out[feat], global_out[feat], temporal_out[feat]):
@@ -159,7 +159,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
             filled = np.where(needs_fill, candidate, filled)
         pdf[feat] = filled
 
-    # 写 CSV
+    # note CSV
     pdf.to_csv(OUT_CSV,
                index=False,
                mode='w' if is_first else 'a',
@@ -167,7 +167,7 @@ def process_chunk(pdf: pd.DataFrame, is_first: bool):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--test-n', type=int, default=0, help='测试模式：前 N 行')
+    parser.add_argument('--test-n', type=int, default=0, help='note: first N rows')
     args = parser.parse_args()
 
     first = True
@@ -182,12 +182,12 @@ def main():
             process_chunk(pdf, is_first=first)
             first = False
 
-    print("✅ 插值完成，结果已保存到", OUT_CSV)
+    print("PASS note, resultnotesavenote", OUT_CSV)
 
 if __name__ == '__main__':
     main()
 """"Processing chunks: 6it [19:22, 175.76s/it]
-Temporal flow (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal flow (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal flow (GPU):   4%|▍         | 205/4888 [00:00<00:02, 2046.76it/s]
 Temporal flow (GPU):   8%|▊         | 412/4888 [00:00<00:02, 2058.62it/s]
 Temporal flow (GPU):  13%|█▎        | 618/4888 [00:00<00:02, 2041.26it/s]
@@ -212,7 +212,7 @@ Temporal flow (GPU):  90%|████████▉ | 4387/4888 [00:02<00:00, 
 Temporal flow (GPU):  94%|█████████▍| 4594/4888 [00:02<00:00, 2063.27it/s]
 Temporal flow (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2066.15it/s]
 
-Temporal occupancy (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal occupancy (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal occupancy (GPU):   4%|▍         | 203/4888 [00:00<00:02, 2027.43it/s]
 Temporal occupancy (GPU):   8%|▊         | 407/4888 [00:00<00:02, 2032.36it/s]
 Temporal occupancy (GPU):  12%|█▎        | 611/4888 [00:00<00:02, 2030.96it/s]
@@ -237,7 +237,7 @@ Temporal occupancy (GPU):  89%|████████▉ | 4354/4888 [00:02<00
 Temporal occupancy (GPU):  93%|█████████▎| 4561/4888 [00:02<00:00, 2055.54it/s]
 Temporal occupancy (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2053.33it/s]
 
-Temporal speed (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal speed (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal speed (GPU):   4%|▍         | 203/4888 [00:00<00:02, 2027.72it/s]
 Temporal speed (GPU):   8%|▊         | 406/4888 [00:00<00:02, 2019.43it/s]
 Temporal speed (GPU):  12%|█▏        | 610/4888 [00:00<00:02, 2027.97it/s]
@@ -262,7 +262,7 @@ Temporal speed (GPU):  90%|████████▉ | 4378/4888 [00:02<00:00,
 Temporal speed (GPU):  94%|█████████▍| 4586/4888 [00:02<00:00, 2068.56it/s]
 Temporal speed (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2064.59it/s]
 Processing chunks: 7it [25:13, 233.18s/it]
-Temporal flow (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal flow (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal flow (GPU):   3%|▎         | 170/4888 [00:00<00:02, 1699.60it/s]
 Temporal flow (GPU):   7%|▋         | 361/4888 [00:00<00:02, 1820.95it/s]
 Temporal flow (GPU):  12%|█▏        | 575/4888 [00:00<00:02, 1964.28it/s]
@@ -287,7 +287,7 @@ Temporal flow (GPU):  91%|█████████ | 4432/4888 [00:02<00:00, 
 Temporal flow (GPU):  95%|█████████▌| 4648/4888 [00:02<00:00, 2144.53it/s]
 Temporal flow (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2103.35it/s]
 
-Temporal occupancy (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal occupancy (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal occupancy (GPU):   4%|▍         | 209/4888 [00:00<00:02, 2086.31it/s]
 Temporal occupancy (GPU):   9%|▊         | 421/4888 [00:00<00:02, 2101.37it/s]
 Temporal occupancy (GPU):  13%|█▎        | 632/4888 [00:00<00:02, 2082.09it/s]
@@ -311,7 +311,7 @@ Temporal occupancy (GPU):  87%|████████▋ | 4273/4888 [00:02<00
 Temporal occupancy (GPU):  92%|█████████▏| 4488/4888 [00:02<00:00, 2132.55it/s]
 Temporal occupancy (GPU): 100%|██████████| 4888/4888 [00:02<00:00, 2122.18it/s]
 
-Temporal speed (GPU):   0%|          | 0/4888 [00:00<?, ?it/s]
+Temporal speed (GPU):   0%|          | 0/4888 [00:00<?,?it/s]
 Temporal speed (GPU):   4%|▍         | 209/4888 [00:00<00:02, 2079.64it/s]
 Temporal speed (GPU):   9%|▊         | 421/4888 [00:00<00:02, 2101.83it/s]
 Temporal speed (GPU):  13%|█▎        | 632/4888 [00:00<00:02, 2080.97it/s]

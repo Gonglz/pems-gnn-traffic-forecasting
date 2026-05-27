@@ -12,7 +12,7 @@ print("y5, y15, y30:", d0.y5.shape, d0.y15.shape, d0.y30.shape)
 """"from dataset import RFGraphDataset
 ds = RFGraphDataset()
 d0 = ds.get(0)
-print("x:", d0.x.shape)        # 应该是 [4883, 6]
+print("x:", d0.x.shape)        # note [4883, 6]
 print("nbr5:", d0.nbr5.shape)  # [4883, K5]
 print("nbr15:",d0.nbr15.shape)
 print("nbr30:",d0.nbr30.shape)

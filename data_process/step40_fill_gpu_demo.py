@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
 # coding: utf-8
 """
-step40_fill_gpu_demo.py — GPU 加速版三步插值流水线（含测试模式）
+step40_fill_gpu_demo.py - GPU note(note)
 
-功能：
- 1. 加载清洗输出(step31_fillExter.csv)、逻辑掩码(step30_logic_mask_continuous.csv)、
-    MD 掩码(step32_md.csv)、日健康因子(day_health_factor.csv)
- 2. 合并逻辑掩码(mask_flag)、MD 掩码(mask_md)、健康因子掩码(mask_hf)
- 3. 对所有掩码点执行三步插值：Local (GPU)、Global (GPU)、Temporal (GPU)
- 4. 输出插值后无缺失训练集(step40_interpolated.csv)
+note:
+ 1. noteoutput(step31_fillExter.csv), note(step30_logic_mask_continuous.csv),
+    MD note(step32_md.csv), note(day_health_factor.csv)
+ 2. note(mask_flag), MD note(mask_md), note(mask_hf)
+ 3. noterowsnote: Local (GPU), Global (GPU), Temporal (GPU)
+ 4. outputnotetrainingnote(step40_interpolated.csv)
 
-依赖：
+note:
   pip install pandas numpy scipy scikit-learn tqdm numba cupy cudf
 
-用法：
+note:
   cd finalproject/data_process
   python step40_fill_gpu_demo.py --test-n 100
   (traffic-env) lgong1@microway:/scratch/lgong1/finalproject/data_process$ python step40_fill_gpu_demo.py --test-n 100
-► CPU 读取前 100 行原始长表
+► CPU readfirst 100 rowsnote
 Loaded 100 rows, masks applied
 Local (GPU) interpolation...
 /scratch/lgong1/envs/traffic-env/lib/python3.10/site-packages/numba/cuda/dispatcher.py:536: NumbaPerformanceWarning: Grid size 1 will likely result in GPU under-utilization due to low occupancy.
@@ -43,7 +43,7 @@ from numba import cuda
 from sklearn.neighbors import KDTree
 import argparse
 
-# 路径配置
+# pathconfiguration
 BASE_DIR     = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 RAW_LONG_CSV = os.path.join(BASE_DIR, 'pems_data', 'step31_fillExter.csv')
 LOGIC_CSV    = os.path.join(BASE_DIR, 'pems_data', 'step30_logic_mask_continuous.csv')
@@ -71,12 +71,12 @@ def local_kernel(feat_in, neighbor_idx, mask, feat_out, K):
             feat_out[i] = feat_in[i]
 
 def load_and_merge(test_n):
-    # —— 第一步：用 pandas 在 CPU 端读取前 test_n 行原始数据
-    print(f"► CPU 读取前 {test_n} 行原始长表")
+    # -- note: note pandas note CPU notereadfirst test_n rowsnotedata
+    print(f"► CPU readfirst {test_n} rowsnote")
     pdf = pd.read_csv(RAW_LONG_CSV, nrows=test_n, parse_dates=['timestamp'])
     df = cudf.from_pandas(pdf)
 
-    # —— 第二步：读取并合并逻辑掩码（CPU 端也只读前 test_n 行）
+    # -- note: readnote(CPU notefirst test_n rows)
     logic_pdf = pd.read_csv(LOGIC_CSV, nrows=test_n, parse_dates=['timestamp'])
     logic_pdf = logic_pdf[['timestamp','station_id','mask_logic']].rename(
         columns={'mask_logic':'mask_flag'}
@@ -85,18 +85,18 @@ def load_and_merge(test_n):
     df = df.merge(logic_cudf, on=['timestamp','station_id'], how='left')
     df['mask_flag'] = df['mask_flag'].fillna(0).astype('bool')
 
-    # —— 第三步：读取并合并 MD 掩码（CPU 端只读前 test_n 行）
+    # -- note: readnote MD note(CPU notefirst test_n rows)
     md_pdf = pd.read_csv(MD_CSV, nrows=test_n)
     md_cudf = cudf.from_pandas(md_pdf[['mask_md']])
     df['mask_md'] = md_cudf['mask_md'].astype('bool')
 
-    # —— 第四步：读取并合并日健康因子（只读前 test_n 行）
+    # -- note: readnote(notefirst test_n rows)
     hf_pdf = pd.read_csv(HF_CSV, nrows=test_n, parse_dates=['date'])
     if 'health_factor' not in hf_pdf.columns:
         hf_pdf.rename(columns={hf_pdf.columns[-1]:'health_factor'}, inplace=True)
     hf_pdf['date'] = hf_pdf['date'].dt.date
 
-    # 将 pdf 加上 date 列以 merge
+    # note pdf note date note merge
     pdf['date'] = pdf['timestamp'].dt.date
     hf_merge = pdf[['station_id','date']].merge(
         hf_pdf[['station_id','date','health_factor']],
@@ -106,7 +106,7 @@ def load_and_merge(test_n):
     df['health_factor'] = hf_cudf['health_factor']
     df['mask_hf'] = df['health_factor'].fillna(1.0) < HF_THRESH
 
-    # —— 生成总掩码
+    # -- generatenote
     df['mask'] = df['mask_flag'] | df['mask_md'] | df['mask_hf']
     return df
 
@@ -175,7 +175,7 @@ def temporal_interpolate_gpu(df, feats):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--test-n', type=int, default=0,
-                        help='测试模式：前 N 行')
+                        help='note: first N rows')
     args = parser.parse_args()
 
     df = load_and_merge(test_n=args.test_n)
@@ -198,7 +198,7 @@ def main():
     for feat in feats:
         df[feat] = temp_map[feat]
 
-    # 输出
+    # output
     df.to_pandas().to_csv(OUT_CSV, index=False)
     print('Step40 fill done, saved to', OUT_CSV)
 

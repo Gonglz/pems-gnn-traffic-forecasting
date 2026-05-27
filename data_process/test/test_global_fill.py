@@ -3,13 +3,13 @@ import sys
 import unittest
 import numpy as np
 
-# 把 data_process 目录加入到 sys.path，确保能 import interp_utils.py
+# note data_process directorynote sys.path, note import interp_utils.py
 HERE = os.path.dirname(__file__)
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from interp_utils import global_fill  # 直接从同级目录导入
+from interp_utils import global_fill  # notedirectorynote
 
 import pandas as pd
 
@@ -21,7 +21,7 @@ class TestGlobalFill(unittest.TestCase):
             'mask_flag':  [False, True,   False, True]
         })
         out = global_fill(df.copy(), ['flow', 'occupancy'])
-        # 有效行平均 (flow: (1+3)/2=2, occ:(0.1+0.3)/2=0.2)
+        # noterowsnote (flow: (1+3)/2=2, occ:(0.1+0.3)/2=0.2)
         self.assertAlmostEqual(out.loc[1, 'flow'], 2.0)
         self.assertAlmostEqual(out.loc[1, 'occupancy'], 0.2)
         self.assertAlmostEqual(out.loc[3, 'flow'], 2.0)
@@ -49,7 +49,7 @@ class TestGlobalFill(unittest.TestCase):
 if __name__ == '__main__':
     unittest.main()
 import os, sys, unittest
-# 确保能 import data_process 下的 interp_utils
+# note import data_process note interp_utils
 HERE = os.path.dirname(__file__)
 ROOT = os.path.abspath(os.path.join(HERE, '..'))
 if ROOT not in sys.path:
@@ -61,18 +61,18 @@ from interp_utils import local_fill
 
 class TestLocalFill(unittest.TestCase):
     def test_basic_fill(self):
-        # 三行，邻居列表长度为 2
+        # noterows, note 2
         df = pd.DataFrame({
             'flow':      [1.0, np.nan, 3.0],
             'nbr_idx':   [[0,2], [0,2], [0,2]],
             'mask_flag': [False, True, False]
         })
         out = local_fill(df, 'flow')
-        # 行 1 应该被 (1 + 3) / 2 填充
+        # rows 1 note (1 + 3) / 2 note
         self.assertAlmostEqual(out.loc[1, 'flow'], 2.0)
 
     def test_no_valid_neighbors(self):
-        # 三行，只有邻居是自己或都是 mask ⇒ 不变
+        # noterows, note mask ⇒ note
         df = pd.DataFrame({
             'flow':      [np.nan, np.nan],
             'nbr_idx':   [[1], [0]],
@@ -83,14 +83,14 @@ class TestLocalFill(unittest.TestCase):
         self.assertTrue(np.isnan(out.loc[1, 'flow']))
 
     def test_partial_nan_neighbors(self):
-        # 混合一些 NaN 和 有效值
+        # Fill rows whose neighbors contain valid values.
         df = pd.DataFrame({
             'flow':      [10.0, np.nan, 30.0, np.nan],
             'nbr_idx':   [[0,2], [0,2], [0,2], [0,2]],
             'mask_flag': [False, True, False, True]
         })
         out = local_fill(df, 'flow')
-        # 行 1 和 行 3 都应该是 (10+30)/2 = 20
+        # rows 1 note rows 3 note (10+30)/2 = 20
         self.assertAlmostEqual(out.loc[1, 'flow'], 20.0)
         self.assertAlmostEqual(out.loc[3, 'flow'], 20.0)
 

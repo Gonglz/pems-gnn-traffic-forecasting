@@ -3,17 +3,17 @@
 """
 step31_md_cuda.py
 
-功能：
- 1. 加载扩展外部特征数据（flow, occupancy, speed, tavg, pcpn）及分组标签 (is_weekend, is_holiday, in_custom_event)
- 2. 按分组标签分组，计算每组的均值 μₖ 和协方差 Σₖ（仅针对连续特征），并加微量正则化后求逆 Σₖ⁻¹
- 3. 在多 GPU 环境下并行计算每条记录的 Mahalanobis 距离平方
- 4. 对每组使用 95% 分位自适应阈值选取，生成 mask_md
- 5. 输出带 md_squared 和 mask_md 的 step32_md.csv
+note:
+ 1. notedata(flow, occupancy, speed, tavg, pcpn)note (is_weekend, is_holiday, in_custom_event)
+ 2. note, computenote μₖ note Σₖ(note), note Σₖ⁻¹
+ 3. note GPU noterowscomputenote Mahalanobis note
+ 4. note 95% note, generate mask_md
+ 5. outputnote md_squared note mask_md note step32_md.csv
 
-依赖：
+note:
   pip install pandas numpy numba pyarrow
 
-用法：
+note:
   cd finalproject/data_process
   python step31_md_cuda.py
 """
@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from numba import cuda, float32
 
-# 连续特征维度（不包含布尔变量）
+# note(note)
 CONT_FEATURES = ['flow', 'occupancy', 'speed', 'tavg', 'pcpn']
 D = len(CONT_FEATURES)
 
@@ -47,48 +47,48 @@ def mahalanobis_kernel(X, mu, inv_cov, distances):
 
 
 def main():
-    print('加载数据并构建分组标签...')
+    print('notedatanote...')
     df = pd.read_csv('../pems_data/step31_fillExter.csv', usecols=CONT_FEATURES + ['is_weekend', 'is_holiday', 'in_custom_event'])
-    # 丢弃包含 NaN 的记录，确保后续计算无缺失
+    # note NaN note, notecomputenote
     df = df.dropna(subset=CONT_FEATURES).reset_index(drop=True)
-    # 分组标签
+    # note
     grp = (df['is_holiday'].astype(int) * 4 +
            df['in_custom_event'].astype(int) * 2 +
            df['is_weekend'].astype(int))
     df['group'] = grp
     N = len(df)
-    print(f'共 {N} 条记录，连续特征维度 {D}')
+    print(f'note {N} note, note {D}')
 
-    # 结果容器
+    # resultnote
     md_sq = np.zeros(N, dtype=np.float32)
     mask_md = np.zeros(N, dtype=bool)
-    thresholds = {}  # 存储每个分组的阈值(N, dtype=bool)
+    thresholds = {}  # note(N, dtype=bool)
 
     devices = list(cuda.gpus)
-    print(f'检测到 {len(devices)} 张 GPU')
+    print(f'detectionnote {len(devices)} note GPU')
 
-    # 对每个组并行处理
+    # noterowsnote
     for label in sorted(df['group'].unique()):
         idx = np.where(df['group'] == label)[0]
         size = len(idx)
-        print(f'组 {label}: {size} 条')
+        print(f'note {label}: {size} note')
         if size < D + 1:
-            print('  样本不足，跳过')
+            print('  note, note')
             continue
         Xg = df.iloc[idx][CONT_FEATURES].values.astype(np.float32)
-        # 对缺失值按组均值进行填充，避免 NaN 导致协方差和距离全为 NaN
+        # notemissing valuesnoterowsnote, note NaN note NaN
         mu = np.nanmean(Xg, axis=0).astype(np.float32)
-        # 将 NaN 替换为对应维度的组均值
+        # note NaN note
         inds = np.where(np.isnan(Xg))
         if inds[0].size > 0:
             Xg[inds] = np.take(mu, inds[1])
-        # 计算协方差并加正则化，保证可逆
+        # computenote, note
         cov = np.cov(Xg, rowvar=False).astype(np.float32)
         cov += np.eye(D, dtype=np.float32) * 1e-6
         inv_cov = np.linalg.inv(cov).astype(np.float32)
         dist_g = np.zeros(size, dtype=np.float32)
 
-        # GPU 并行
+        # GPU noterows
         chunk = math.ceil(size / len(devices))
         for dev_id, dev in enumerate(devices):
             start = dev_id * chunk
@@ -107,19 +107,19 @@ def main():
                 dist_g[start:end] = d_dist.copy_to_host()
 
         thr = np.quantile(dist_g, 0.95)
-        thresholds[label] = thr  # 记录阈值
-        print(f'  阈值(95%): {thr:.4f}')
+        thresholds[label] = thr  # note
+        print(f'  note(95%): {thr:.4f}')
         md_sq[idx] = dist_g
         mask_md[idx] = dist_g > thr
 
-    print('写入结果...')
+    print('noteresult...')
     out = df.copy()
     out['md_squared'] = md_sq
     out['mask_md'] = mask_md
     out.to_csv('../pems_data/step32_md.csv', index=False)
-    print('完成: ../pems_data/step32_md.csv')
+    print('note:../pems_data/step32_md.csv')
 
-    # 可视化每个分组的阈值
+    # note
     try:
         import matplotlib.pyplot as plt
         groups = list(thresholds.keys())
@@ -132,9 +132,9 @@ def main():
         plt.grid(True)
         fig_path = '../pems_data/step33_thresholds.png'
         plt.savefig(fig_path, dpi=300)
-        print(f'✔ 阈值可视化已保存: {fig_path}')
+        print(f'✔ notesave: {fig_path}')
     except Exception as e:
-        print(f'⚠ 阈值可视化失败: {e}')
+        print(f'⚠ notefailed: {e}')
 
 if __name__ == '__main__':
     main()

@@ -3,10 +3,10 @@
 """
 model/gnn_final.py
 
-Multi-Head RF-GraphSAGE with dynamic RF 子图采样支持。
-每个 head 对应一个时间窗（5/15/30min），有自己的一套两层 GraphSAGE
-和一个线性输出层。forward() 转发到 sample_forward()，便于 DDP wrapper
-参与前向与梯度同步。
+Multi-Head RF-GraphSAGE with dynamic RF note.
+note head note(5/15/30min), note GraphSAGE
+noteoutputnote.forward() note sample_forward(), note DDP wrapper
+notefirstnote.
 """
 
 import torch
@@ -20,10 +20,10 @@ HEADS = ("5min", "15min", "30min")
 
 class MultiHeadRFGraphSAGEDyn(nn.Module):
     """
-    Multi-Head RF-GraphSAGE with dynamic RF 子图采样支持。
-    每个 head 对应一个时间窗（5/15/30min），有自己的一套两层 GraphSAGE
-    和一个线性输出层。
-    forward() 转发到 sample_forward()，不直接使用 full-graph forward。
+    Multi-Head RF-GraphSAGE with dynamic RF note.
+    note head note(5/15/30min), note GraphSAGE
+    noteoutputnote.
+    forward() note sample_forward(), note full-graph forward.
     """
     def __init__(
         self,
@@ -48,10 +48,10 @@ class MultiHeadRFGraphSAGEDyn(nn.Module):
             self.station_embedding = None
         conv_in_dim = in_dim + self.station_embedding_dim
 
-        # 为三个时间窗分别构建 conv layers 和头部线性层
+        # note conv layers note
         self.convs = nn.ModuleDict({
             wnd: nn.ModuleList([
-                # 第一层： in_dim → hidden_dim，其余层 hidden_dim → hidden_dim
+                # note:  in_dim -> hidden_dim, note hidden_dim -> hidden_dim
                 SAGEConv(conv_in_dim if i == 0 else hidden_dim, hidden_dim)
                 for i in range(num_layers)
             ])
@@ -78,30 +78,30 @@ class MultiHeadRFGraphSAGEDyn(nn.Module):
         node_ids: torch.Tensor = None,
     ) -> torch.Tensor:
         """
-        在小批量子图上做前向。
-        x:   [num_sub_nodes, in_dim]  输入特征
+        notefirstnote.
+        x:   [num_sub_nodes, in_dim]  inputnote
         adjs: list of (edge_index, e_id, size) tuples from NeighborSampler
-              长度 = num_layers，顺序是 [hop_1, hop_2, …]
+              note = num_layers, note [hop_1, hop_2, …]
         head: '5min' | '15min' | '30min'
-        返回: [batch_size, 1] 预测值
+        note: [batch_size, 1] note
         """
         convs = self.convs[head]
         lin   = self.heads[head]
         x = self._append_station_embedding(x, node_ids)
 
-        # 按 adjs 原序遍历：adjs[0] 对应第一层邻居，adjs[1] 对应第二层
+        # note adjs note: adjs[0] note, adjs[1] note
         for i, (edge_index, _, size) in enumerate(adjs):
             # size = [num_source_nodes, num_target_nodes]
-            x_src = x[:size[0]]   # 所有 source 节点
-            x_dst = x[:size[1]]   # batch 中的 target 节点
-            # 执行 GraphSAGE 聚合
+            x_src = x[:size[0]]   # note source note
+            x_dst = x[:size[1]]   # batch note target note
+            # noterows GraphSAGE note
             x = convs[i]((x_src, x_dst), edge_index)
-            # 非最后一层时做激活与 dropout
-            if i != self.num_layers - 1:
+            # note dropout
+            if i!= self.num_layers - 1:
                 x = F.relu(x)
                 x = F.dropout(x, p=self.dropout, training=self.training)
 
-        # x 现在是目标节点的表示，线性映射到单输出
+        # x notegoalnote, noteoutput
         return lin(x)
 
     def forward(
